@@ -1,0 +1,265 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Definição do enum para tipo de usuário
+enum UserType {
+  COMPANY
+  EMPLOYEE
+}
+
+// Definição do enum para role de usuário
+enum UserRole {
+  BASIC
+  ADMIN
+}
+
+// Definição do enum para status de usuário
+enum UserStatus {
+  PENDING
+  ACTIVE
+  DISABLED
+}
+
+model User {
+  id               String     @id @default(uuid()) @map("IDT_USER")
+  companyId        String?    @map("IDT_COMPANY")
+  name             String     @map("NAM_NAME")
+  email            String     @unique @map("NAM_EMAIL")
+  password         String     @map("NAM_PASSWORD")
+  type             UserType   @map("IND_TYPE")
+  status           UserStatus @default(PENDING) @map("IND_STATUS")
+  resetToken       String?    @unique @map("NAM_RESET_TOKEN")
+  confirmationCode String?    @unique @map("NAM_CONFIRMATION_TOKEN")
+  role             UserRole   @default(BASIC) @map("IND_ROLE")
+  createdAt        DateTime   @default(now()) @map("DAT_CREATED")
+  updatedAt        DateTime   @updatedAt @map("DAT_UPDATED")
+
+  company  Company?  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employee Employee?
+
+  @@index([companyId], name: "IDX_USER_COMPANY_ID")
+  @@index([name], name: "IDX_NAME")
+  @@index([email], name: "IDX_USER_EMAIL")
+  @@map("USER")
+}
+
+model Company {
+  id               String   @id @default(uuid()) @map("IDT_COMPANY")
+  addressId        String   @unique @map("IDT_ADDRESS")
+  categoryId       String   @map("IDT_CATEGORY")
+  socialName       String   @map("NAM_SOCIAL_NAME")
+  document         String   @unique @map("DOC_DOCUMENT")
+  phone            String   @map("DES_PHONE")
+  employeeQuantity Int      @map("NUM_EMPLOYEE_QUANTITY")
+  createdAt        DateTime @default(now()) @map("DAT_CREATED")
+  updatedAt        DateTime @updatedAt @map("DAT_UPDATED")
+
+  category   Category     @relation(fields: [categoryId], references: [id])
+  address    Address      @relation(fields: [addressId], references: [id])
+  employee   Employee[]
+  workPeriod WorkPeriod[]
+  user       User[]
+  Absence    Absence[]
+
+  @@index([document], name: "IDX_COMPANY_DOCUMENT")
+  @@map("COMPANY")
+}
+
+model Address {
+  id          String   @id @default(uuid()) @map("IDT_ADDRESS")
+  description String   @map("DES_ADDRESS")
+  lat         String   @map("NUM_LAT")
+  lng         String   @map("NUM_LNG")
+  createdAt   DateTime @default(now()) @map("DAT_CREATED")
+  updatedAt   DateTime @updatedAt @map("DAT_UPDATED")
+
+  Company Company?
+
+  @@map("ADDRESS")
+}
+
+model Category {
+  id        String   @id @default(uuid()) @map("IDT_CATEGORY")
+  name      String   @unique @map("NAM_NAME")
+  createdAt DateTime @default(now()) @map("DAT_CREATED")
+  updatedAt DateTime @updatedAt @map("DAT_UPDATED")
+
+  company Company[]
+
+  @@map("CATEGORY")
+}
+
+// Definição do enum para genero do funcionário
+enum Gender {
+  MALE
+  FEMALE
+  ANOTHER
+}
+
+// Definição do enum para método de acesso do funcionário
+enum AcessMethods {
+  WEB
+  APP
+  WEB_APP
+}
+
+model Employee {
+  id            String       @id @default(uuid()) @map("IDT_EMPLOYEE")
+  userId        String       @unique @map("IDT_USER")
+  companyId     String       @map("IDT_COMPANY")
+  codWorkPeriod String?      @map("COD_WORK_PERIOD")
+  gender        Gender       @map("IND_GENDER")
+  document      String       @map("DOC_DOCUMENT")
+  birthDate     String       @map("DAT_BIRTH")
+  phone         String       @map("DES_PHONE")
+  hourlyWage    Float        @map("NUM_HOURLY_WAGE")
+  nisPis        String?      @map("COD_NIS_PIS")
+  acessMethod   AcessMethods @map("IND_ACESS_METHOD")
+  registerCode  String       @map("COD_REGISTER")
+  admissionDate String       @map("DAT_ADMISSION")
+  enableApp     Boolean      @default(true) @map("FLG_ENABLE_APP")
+  isActive      Boolean      @default(true) @map("FLG_IS_ACTIVE")
+  initialDate   String       @map("DAT_INICIAL")
+  presence      Boolean      @default(true) @map("FLG_PRESENCE")
+  office        String       @map("IND_OFFICE")
+  createdAt     DateTime     @default(now()) @map("DAT_CREATED")
+  updatedAt     DateTime     @updatedAt @map("DAT_UPDATED")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id])
+
+  workPeriod         WorkPeriod[]
+  absence            Absence[]
+  workPeriodRegister WorkPeriodRegister[]
+  extraWorkPeriod    ExtraWorkPeriod[]
+
+  @@index([companyId], name: "IDX_EMPLOYEE_COMPANY_ID")
+  @@index([document], name: "IDX_DOCUMENT")
+  @@map("EMPLOYEE")
+}
+
+enum AbsenceType {
+  LEAVE_OF_ABSENCE
+  MEDICAL_CERTIFICATE
+  LEGAL
+  ABSENCE
+  UNJUSTIFIED
+  VACATION
+  DAY
+  INSS
+  SUSPENSION
+}
+
+model Absence {
+  id          String      @id @default(uuid()) @map("IDT_ABSENCE")
+  employeeId  String      @map("IDT_EMPLOYEE")
+  companyId   String      @map("IDT_COMPANY")
+  type        AbsenceType @map("IND_ABSENCE_TYPE")
+  description String      @map("DESC_DESCRIPTION")
+  initialDate DateTime    @map("DAT_INITIAL")
+  endDate     DateTime    @map("DAT_END")
+  createdAt   DateTime    @default(now()) @map("DAT_CREATED")
+  updatedAt   DateTime    @updatedAt @map("DAT_UPDATED")
+
+  company    Company      @relation(fields: [companyId], references: [id])
+  employee   Employee     @relation(fields: [employeeId], references: [id])
+  attachment Attachment[]
+
+  @@index([companyId], name: "IDX_ABSENCE_COMPANY_ID")
+  @@index([employeeId], name: "IDX_ABSENCE_EMPLOYEE_ID")
+  @@map("ABSENCE")
+}
+
+model Attachment {
+  id        String   @id @default(uuid()) @map("IDT_ATTACHMENT")
+  absenceId String   @map("IDT_ABSENCE")
+  url       String   @map("NAM_URL")
+  createdAt DateTime @default(now()) @map("DAT_CREATED")
+  updatedAt DateTime @updatedAt @map("DAT_UPDATED")
+
+  absence Absence @relation(fields: [absenceId], references: [id])
+
+  @@map("ATTACHMENT")
+}
+
+enum Weekday {
+  Sunday
+  Monday
+  Tuesday
+  Wednesday
+  Thursday
+  Friday
+  Saturday
+}
+
+model WorkPeriod {
+  id                String   @id @default(uuid()) @map("IDT_WORK_PERIOD")
+  codWorkPeriod     String   @map("COD_WORK_PERIOD")
+  day               Weekday  @map("IND_WEEKDAY")
+  companyId         String   @map("IDT_COMPANY")
+  name              String   @map("NAM_NAME")
+  startWorkHour     DateTime @map("DAT_START_WORK_HOUR")
+  finishedWorkHour  DateTime @map("DAT_FINISHED_WORK_HOUR")
+  startBreakHour    DateTime @map("DAT_START_BREAK_HOUR")
+  finishedBreakHour DateTime @map("DAT_FINISHED_BREAK_HOUR")
+  createdAt         DateTime @default(now()) @map("DAT_CREATED")
+  updatedAt         DateTime @updatedAt @map("DAT_UPDATED")
+
+  extraWorkPeriod    ExtraWorkPeriod[]
+  workPeriodRegister WorkPeriodRegister[]
+  company            Company?             @relation(fields: [companyId], references: [id])
+  employee           Employee[]
+
+  @@unique([codWorkPeriod, day], name: "COD_WORK_PERIOD_DAY_UNIQUE")
+  @@index([name], name: "IDX_WORK_PERIOD_NAME")
+  @@index([companyId], name: "IDX_WORK_PERIOD_COMPANY_ID")
+  @@map("WORK_PERIOD")
+}
+
+model WorkPeriodRegister {
+  id                String    @id @default(uuid()) @map("IDT_WORK_PERIOD_REGISTER")
+  workPeriodId      String?   @map("IDT_WORK_PERIOD")
+  employeeId        String    @map("IDT_EMPLOYEE")
+  startWorkHour     DateTime  @map("DAT_START_HOUR")
+  finishedWorkHour  DateTime? @map("DAT_END_HOUR")
+  startBreakHour    DateTime? @map("DAT_START_BREAK_HOUR")
+  finishedBreakHour DateTime? @map("DAT_FINISHED_WORK_HOUR")
+  lat               String    @map("NUM_LAT")
+  lng               String    @map("NUM_LNG")
+  createdAt         DateTime  @default(now()) @map("DAT_CREATED")
+  updatedAt         DateTime  @updatedAt @map("DAT_UPDATED")
+
+  workPeriod WorkPeriod? @relation(fields: [workPeriodId], references: [id], onDelete: SetNull)
+  employee   Employee    @relation(fields: [employeeId], references: [id])
+
+  @@index([employeeId], name: "IDX_WORK_PERIOD_REGISTER_EMPLOYEE_ID")
+  @@map("WORK_PERIOD_REGISTER")
+}
+
+model ExtraWorkPeriod {
+  id                     String   @id @default(uuid()) @map("IDT_EXTRA_WORK_PERIOD")
+  workPeriodId           String   @map("IDT_WORK_PERIOD")
+  employeeId             String   @map("IDT_EMPLOYEE")
+  startExtraWorkHour     DateTime @map("DAT_EXTRA_START_WORK_HOUR")
+  finishedExtraWorkHour  DateTime @map("DAT_EXTRA_FINISHED_WORK_HOUR")
+  startExtraBreakHour    DateTime @map("DAT_START_BREAK_HOUR")
+  finishedExtraBreakHour DateTime @map("DAT_FINISHED_WORK_HOUR")
+  lat                    String   @map("NUM_LAT")
+  lng                    String   @map("NUM_LNG")
+  createdAt              DateTime @default(now()) @map("DAT_CREATED")
+  updatedAt              DateTime @updatedAt @map("DAT_UPDATED")
+
+  workPeriod WorkPeriod @relation(fields: [workPeriodId], references: [id])
+  employee   Employee   @relation(fields: [employeeId], references: [id])
+
+  @@map("EXTRA_WORK_PERIOD")
+}
